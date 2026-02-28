@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lançamentos - Dashboard Financeiro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body { background-color: #f4f6f9; }
+        .bg-primary-dark { background-color: #1F4E78 !important; color: white; }
+        .text-receita { color: #00B050; font-weight: bold; }
+        .text-despesa { color: #C00000; font-weight: bold; }
+        .badge-pago { background-color: #00B050; }
+        .badge-pendente { background-color: #C00000; }
+        .btn-acao { background: none; border: none; font-size: 1.2rem; cursor: pointer; transition: 0.2s; }
+        .btn-acao:hover { opacity: 0.7; transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-primary-dark p-3 shadow-sm mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand text-white fw-bold" href="#">📊 Dashboard Academy</a>
+        <div class="d-flex gap-3">
+            <a href="index.html" class="btn btn-outline-light btn-sm">Início</a>
+            <a href="lancamentos.html" class="btn btn-light btn-sm fw-bold">Lançamentos</a>
+            <a href="dashboard.html" class="btn btn-outline-light btn-sm">Dashboards</a>
+            <a href="configuracoes.html" class="btn btn-outline-light btn-sm">Configurações</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="text-primary-dark fw-bold mb-0">📋 Histórico de Lançamentos</h4>
+        <button class="btn bg-primary-dark text-white fw-bold shadow-sm" onclick="abrirModalNovo()">
+            + Novo Lançamento
+        </button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle mb-0">
+                <thead class="bg-primary-dark text-white text-center">
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Plano de Contas</th>
+                        <th>Valor</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaCorpo" class="text-center">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalLancamento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-dark text-white">
+                <h5 class="modal-title" id="modalTitulo">Novo Lançamento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formLancamento" onsubmit="salvarLancamento(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="lancamentoId">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Data</label>
+                        <input type="date" id="dataEmissao" class="form-control" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted fw-bold">Tipo</label>
+                            <select id="tipo" class="form-select" onchange="atualizarDropdownCategorias()" required>
+                                <option value="Receita">Receita</option>
+                                <option value="Despesa">Despesa</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted fw-bold">Status</label>
+                            <select id="status" class="form-select" required>
+                                <option value="Pago">Pago</option>
+                                <option value="Não Pago">Não Pago</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Plano de Contas</label>
+                        <select id="categoria" class="form-select" required>
+                            <option value="" disabled selected>Selecione o tipo primeiro...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted fw-bold">Valor (R$)</label>
+                        <input type="number" id="valor" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn bg-primary-dark text-white fw-bold">Salvar Dados</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // const API_URL = "http://127.0.0.1:8000/api"; - endereço local
+    const API_URL = "https://meu-financeiro-api-p20x.onrender.com/api";
+    const modalBootstrap = new bootstrap.Modal(document.getElementById('modalLancamento'));
+    
+    // Variável global para guardar as contas puxadas do banco de dados
+    let planoContasGlobais = [];
+
+    // 1. Puxar o Plano de Contas do Banco de Dados
+    async function carregarPlanoContas() {
+        try {
+            const resposta = await fetch(`${API_URL}/plano-contas`);
+            planoContasGlobais = await resposta.json();
+        } catch (erro) {
+            console.error("Erro ao carregar o plano de contas:", erro);
+        }
+    }
+
+    // 2. Inteligência do Dropdown: Mostra apenas as contas do Tipo selecionado
+    function atualizarDropdownCategorias(categoriaParaSelecionar = '') {
+        const tipoSelecionado = document.getElementById('tipo').value;
+        const selectCategoria = document.getElementById('categoria');
+        
+        // Limpa a caixa e coloca a mensagem padrão
+        selectCategoria.innerHTML = '<option value="" disabled selected>Selecione uma categoria...</option>';
+        
+        // Filtra apenas as categorias que pertencem ao tipo (Receita ou Despesa)
+        const categoriasFiltradas = planoContasGlobais.filter(c => c.tipo === tipoSelecionado);
+        
+        // Preenche o dropdown com as opções corretas
+        categoriasFiltradas.forEach(conta => {
+            const opcao = document.createElement('option');
+            opcao.value = conta.descricao;
+            opcao.innerText = conta.descricao;
+            
+            // Se estivermos a editar e esta for a categoria salva, seleciona-a automaticamente
+            if(conta.descricao === categoriaParaSelecionar) {
+                opcao.selected = true;
+            }
+            selectCategoria.appendChild(opcao);
+        });
+    }
+
+    // 3. Puxar Dados e Desenhar Tabela
+    async function carregarTabela() {
+        try {
+            const resposta = await fetch(`${API_URL}/lancamentos`);
+            const dados = await resposta.json();
+            const tbody = document.getElementById('tabelaCorpo');
+            tbody.innerHTML = ''; 
+
+            dados.forEach(item => {
+                const corTipo = item.tipo === 'Receita' ? 'text-receita' : 'text-despesa';
+                const corStatus = item.status === 'Pago' ? 'badge-pago' : 'badge-pendente';
+                const valorFormatado = parseFloat(item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const dadosParaEditar = JSON.stringify(item).replace(/"/g, '&quot;');
+
+                const linha = `
+                    <tr>
+                        <td>${item.data_emissao.split('-').reverse().join('/')}</td>
+                        <td class="${corTipo}">${item.tipo}</td>
+                        <td>${item.categoria}</td>
+                        <td class="fw-bold">${valorFormatado}</td>
+                        <td><span class="badge ${corStatus}">${item.status}</span></td>
+                        <td>
+                            <button class="btn-acao" onclick="abrirModalEditar(${dadosParaEditar})" title="Editar">✏️</button>
+                            <button class="btn-acao" onclick="excluirLancamento(${item.id})" title="Excluir">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += linha;
+            });
+        } catch (erro) {
+            console.error("Erro ao carregar tabela:", erro);
+        }
+    }
+
+    // 4. Prepara a Janela para um Novo Lançamento
+    function abrirModalNovo() {
+        document.getElementById('formLancamento').reset();
+        document.getElementById('lancamentoId').value = ''; 
+        document.getElementById('modalTitulo').innerText = 'Novo Lançamento';
+        
+        // Atualiza a lista de categorias baseada no tipo padrão (Receita) que fica na tela
+        atualizarDropdownCategorias();
+        
+        modalBootstrap.show();
+    }
+
+    // 5. Prepara a Janela para Editar
+    function abrirModalEditar(item) {
+        document.getElementById('lancamentoId').value = item.id; 
+        document.getElementById('dataEmissao').value = item.data_emissao;
+        document.getElementById('tipo').value = item.tipo;
+        
+        // Atualiza o dropdown com as categorias corretas e já seleciona a antiga
+        atualizarDropdownCategorias(item.categoria);
+        
+        document.getElementById('valor').value = item.valor;
+        document.getElementById('status').value = item.status;
+        
+        document.getElementById('modalTitulo').innerText = 'Editar Lançamento';
+        modalBootstrap.show();
+    }
+
+    // 6. Salvar (POST ou PUT)
+    async function salvarLancamento(event) {
+        event.preventDefault();
+
+        const id = document.getElementById('lancamentoId').value;
+        const dados = {
+            data_emissao: document.getElementById('dataEmissao').value,
+            tipo: document.getElementById('tipo').value,
+            categoria: document.getElementById('categoria').value,
+            valor: parseFloat(document.getElementById('valor').value),
+            status: document.getElementById('status').value
+        };
+
+        const url = id ? `${API_URL}/lancamentos/${id}` : `${API_URL}/lancamentos`;
+        const metodo = id ? 'PUT' : 'POST';
+
+        try {
+            const resposta = await fetch(url, {
+                method: metodo,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (resposta.ok) {
+                modalBootstrap.hide();
+                carregarTabela();
+            } else {
+                alert("Erro ao salvar dados.");
+            }
+        } catch (erro) {
+            console.error("Erro:", erro);
+        }
+    }
+
+    // 7. Excluir com Trava de Segurança
+    async function excluirLancamento(id) {
+        const confirmacao = confirm("Tem certeza que deseja excluir permanentemente este lançamento?");
+        if (!confirmacao) return;
+
+        try {
+            const resposta = await fetch(`${API_URL}/lancamentos/${id}`, { method: 'DELETE' });
+            if (resposta.ok) carregarTabela();
+            else alert("Erro ao excluir lançamento.");
+        } catch (erro) {
+            console.error("Erro:", erro);
+        }
+    }
+
+    // Ao iniciar a página, carrega primeiro o plano de contas e depois desenha a tabela
+    window.onload = async () => {
+        await carregarPlanoContas();
+        carregarTabela();
+    };
+</script>
+
+</body>
+</html>

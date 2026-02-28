@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Financeiro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f4f6f9; }
+        .bg-primary-dark { background-color: #1F4E78 !important; color: white; }
+        .card-kpi { border-radius: 10px; border: none; color: white; transition: transform 0.2s; }
+        .card-kpi:hover { transform: translateY(-5px); }
+        .bg-receita { background-color: #00B050; }
+        .bg-despesa { background-color: #C00000; }
+        .bg-resultado { background-color: #1F4E78; }
+        .bg-lucro { background-color: #FFC000; color: #333 !important; }
+        .grafico-container { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-primary-dark p-3 shadow-sm mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand text-white fw-bold" href="#">📊 Dashboard Academy</a>
+        <div class="d-flex gap-3">
+            <a href="index.html" class="btn btn-outline-light btn-sm">Início</a>
+            <a href="lancamentos.html" class="btn btn-outline-light btn-sm">Lançamentos</a>
+            <button class="btn btn-light btn-sm fw-bold">Dashboards</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    
+    <div class="row mb-4 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-bold text-muted">Mês</label>
+            <select id="filtroMes" class="form-select">
+                <option value="1">Janeiro</option>
+                <option value="2">Fevereiro</option>
+                <option value="3" selected>Março</option>
+                <option value="4">Abril</option>
+                <option value="5">Maio</option>
+                <option value="6">Junho</option>
+                <option value="7">Julho</option>
+                <option value="8">Agosto</option>
+                <option value="9">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold text-muted">Ano</label>
+            <select id="filtroAno" class="form-select">
+                <option value="2026" selected>2026</option>
+                <option value="2027">2027</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn bg-primary-dark text-white w-100 fw-bold" onclick="carregarDashboard()">Atualizar Dados</button>
+        </div>
+    </div>
+
+    <div class="row mb-4 text-center">
+        <div class="col-md-3">
+            <div class="card card-kpi bg-receita p-3 shadow-sm">
+                <h6 class="text-uppercase mb-1">Receitas Realizadas</h6>
+                <h3 id="kpiReceita" class="fw-bold mb-0">R$ 0,00</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-kpi bg-despesa p-3 shadow-sm">
+                <h6 class="text-uppercase mb-1">Despesas Realizadas</h6>
+                <h3 id="kpiDespesa" class="fw-bold mb-0">R$ 0,00</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-kpi bg-resultado p-3 shadow-sm">
+                <h6 class="text-uppercase mb-1">Resultado (Saldo)</h6>
+                <h3 id="kpiResultado" class="fw-bold mb-0">R$ 0,00</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-kpi bg-lucro p-3 shadow-sm">
+                <h6 class="text-uppercase mb-1">Lucratividade</h6>
+                <h3 id="kpiLucratividade" class="fw-bold mb-0">0%</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-md-8">
+            <div class="grafico-container h-100">
+                <h5 class="text-primary-dark fw-bold text-center mb-3">Fluxo de Caixa Diário</h5>
+                <canvas id="graficoFluxo"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="grafico-container h-100">
+                <h5 class="text-primary-dark fw-bold text-center mb-3">Despesas por Categoria</h5>
+                <canvas id="graficoDespesas"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // const API_URL = "http://127.0.0.1:8000/api"; - endereço local
+    const API_URL = "https://meu-financeiro-api-p20x.onrender.com/api";
+    let graficoFluxoInstancia = null;
+    let graficoDespesasInstancia = null;
+
+    // Formata números para o padrão de moeda do Brasil
+    const formatarMoeda = (valor) => parseFloat(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    async function carregarDashboard() {
+        const mes = document.getElementById('filtroMes').value;
+        const ano = document.getElementById('filtroAno').value;
+
+        try {
+            // 1. Puxando os dados dos 4 Cartões Principais
+            const respCards = await fetch(`${API_URL}/dashboard/${ano}/${mes}`);
+            const dadosCards = await respCards.json();
+            
+            document.getElementById('kpiReceita').innerText = formatarMoeda(dadosCards.financeiro_real.receitas_pagas);
+            document.getElementById('kpiDespesa').innerText = formatarMoeda(dadosCards.financeiro_real.despesas_pagas);
+            document.getElementById('kpiResultado').innerText = formatarMoeda(dadosCards.financeiro_real.saldo_resultado);
+            document.getElementById('kpiLucratividade').innerText = dadosCards.financeiro_real.lucratividade_percentual.toFixed(2).replace('.', ',') + '%';
+
+            // 2. Puxando os dados do Fluxo de Caixa Diário (Gráfico de Barras)
+            const respFluxo = await fetch(`${API_URL}/relatorios/fluxo-diario/${ano}/${mes}`);
+            const dadosFluxo = await respFluxo.json();
+            
+            const labelsDias = dadosFluxo.fluxo.map(item => `Dia ${item.dia}`);
+            const dadosReceitas = dadosFluxo.fluxo.map(item => item.receita);
+            const dadosDespesas = dadosFluxo.fluxo.map(item => item.despesa);
+
+            renderizarGraficoFluxo(labelsDias, dadosReceitas, dadosDespesas);
+
+            // 3. Puxando os dados para Análise de Despesas (Gráfico de Rosca)
+            const respDespesas = await fetch(`${API_URL}/relatorios/analise-contas/${ano}/${mes}/Despesa`);
+            const analiseDespesas = await respDespesas.json();
+            
+            const labelsCategorias = analiseDespesas.detalhamento.map(item => item.categoria);
+            const valoresCategorias = analiseDespesas.detalhamento.map(item => item.valor_absoluto);
+
+            renderizarGraficoRosca(labelsCategorias, valoresCategorias);
+
+        } catch (erro) {
+            console.error("Erro ao carregar o dashboard:", erro);
+        }
+    }
+
+    // Função para desenhar o Gráfico de Barras do Fluxo Diário
+    function renderizarGraficoFluxo(labels, receitas, despesas) {
+        const ctx = document.getElementById('graficoFluxo').getContext('2d');
+        
+        // Destroi o gráfico anterior antes de desenhar o novo para evitar sobreposição
+        if (graficoFluxoInstancia) graficoFluxoInstancia.destroy();
+
+        graficoFluxoInstancia = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Receitas', data: receitas, backgroundColor: '#00B050', borderRadius: 4 },
+                    { label: 'Despesas', data: despesas, backgroundColor: '#C00000', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Função para desenhar o Gráfico de Rosca das Categorias
+    function renderizarGraficoRosca(labels, valores) {
+        const ctx = document.getElementById('graficoDespesas').getContext('2d');
+        
+        if (graficoDespesasInstancia) graficoDespesasInstancia.destroy();
+
+        graficoDespesasInstancia = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: valores,
+                    // Paleta de cores moderna para fatiar as despesas
+                    backgroundColor: ['#1F4E78', '#C00000', '#FFC000', '#00B050', '#8E44AD', '#E67E22'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '65%', // Deixa o buraco no meio maior
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    // Carrega o dashboard automaticamente ao abrir a página
+    window.onload = carregarDashboard;
+</script>
+
+</body>
+</html>

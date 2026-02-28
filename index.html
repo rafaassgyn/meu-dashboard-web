@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Início - Dashboard Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .bg-primary-dark { background-color: #1F4E78 !important; color: white; }
+        .card-atalho { transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; border: none; border-radius: 12px; }
+        .card-atalho:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+        .icone-grande { font-size: 2.5rem; }
+        .text-receita { color: #00B050; }
+        .text-despesa { color: #C00000; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-primary-dark p-3 shadow-sm mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand text-white fw-bold" href="#">📊 Dashboard Academy</a>
+        <div class="d-flex gap-3">
+            <a href="index.html" class="btn btn-light btn-sm fw-bold">Início</a>
+            <a href="lancamentos.html" class="btn btn-outline-light btn-sm">Lançamentos</a>
+            <a href="dashboard.html" class="btn btn-outline-light btn-sm">Dashboards</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-primary-dark fw-bold">Olá, Raphael! 👋</h2>
+            <p class="text-muted" id="dataAtual">Carregando data...</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm border-0 border-start border-5 border-danger h-100">
+                <div class="card-body">
+                    <h6 class="text-muted fw-bold text-uppercase mb-1">🔴 Atenção: Contas a Pagar (Este Mês)</h6>
+                    <h3 id="alertaPagar" class="text-despesa fw-bold mb-0">R$ 0,00</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm border-0 border-start border-5 border-success h-100">
+                <div class="card-body">
+                    <h6 class="text-muted fw-bold text-uppercase mb-1">🟢 A Receber (Este Mês)</h6>
+                    <h3 id="alertaReceber" class="text-receita fw-bold mb-0">R$ 0,00</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="text-primary-dark fw-bold mb-3">⚡ O que você deseja fazer?</h5>
+    <div class="row mb-5 text-center">
+        <div class="col-md-4 mb-3">
+            <div class="card card-atalho shadow-sm h-100 p-4" onclick="window.location.href='lancamentos.html'">
+                <div class="icone-grande mb-2">➕</div>
+                <h5 class="fw-bold text-primary-dark">Novo Lançamento</h5>
+                <p class="text-muted small mb-0">Registre uma nova receita ou despesa no sistema.</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card card-atalho shadow-sm h-100 p-4" onclick="window.location.href='dashboard.html'">
+                <div class="icone-grande mb-2">📈</div>
+                <h5 class="fw-bold text-primary-dark">Ver Dashboards</h5>
+                <p class="text-muted small mb-0">Analise seus gráficos, lucratividade e metas.</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card card-atalho shadow-sm h-100 p-4" onclick="window.location.href='configuracoes.html'">
+                <div class="icone-grande mb-2">⚙️</div>
+                <h5 class="fw-bold text-primary-dark">Configurações</h5>
+                <p class="text-muted small mb-0">Ajuste seu plano de contas e preferências.</p>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="text-primary-dark fw-bold mb-3">🕒 Últimas Movimentações</h5>
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <tbody id="tabelaRecentes">
+                    </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white text-center">
+            <a href="lancamentos.html" class="text-decoration-none fw-bold">Ver todo o histórico ➔</a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // URL do Render!
+    const API_URL = "https://meu-financeiro-api-p20x.onrender.com/api";
+
+    // 1. Mostrar a data atual bonitinha
+    const opcoesData = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('dataAtual').innerText = new Date().toLocaleDateString('pt-BR', opcoesData);
+
+    const formatarMoeda = (valor) => parseFloat(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    async function carregarInicio() {
+        const dataHoje = new Date();
+        const mesAtual = dataHoje.getMonth() + 1; // getMonth começa em 0
+        const anoAtual = dataHoje.getFullYear();
+
+        try {
+            // 2. Buscar Pendências do Mês Atual
+            const respDash = await fetch(`${API_URL}/dashboard/${anoAtual}/${mesAtual}`);
+            if (respDash.ok) {
+                const dadosDash = await respDash.json();
+                document.getElementById('alertaPagar').innerText = formatarMoeda(dadosDash.pendencias.contas_a_pagar);
+                document.getElementById('alertaReceber').innerText = formatarMoeda(dadosDash.pendencias.contas_a_receber);
+            }
+
+            // 3. Buscar Últimos 5 Lançamentos
+            const respLancamentos = await fetch(`${API_URL}/lancamentos`);
+            if (respLancamentos.ok) {
+                const todosLancamentos = await respLancamentos.json();
+                const ultimos5 = todosLancamentos.slice(0, 5); // Pega só os 5 primeiros
+                
+                const tbody = document.getElementById('tabelaRecentes');
+                tbody.innerHTML = '';
+
+                if (ultimos5.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted p-4">Nenhuma movimentação recente.</td></tr>';
+                    return;
+                }
+
+                ultimos5.forEach(item => {
+                    const corTipo = item.tipo === 'Receita' ? 'text-receita' : 'text-despesa';
+                    const icone = item.tipo === 'Receita' ? '🟢' : '🔴';
+                    const valorFormatado = formatarMoeda(item.valor);
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="text-muted" style="width: 15%">${item.data_emissao.split('-').reverse().join('/')}</td>
+                            <td class="fw-bold" style="width: 40%">${icone} ${item.categoria}</td>
+                            <td class="text-muted" style="width: 25%">${item.status}</td>
+                            <td class="${corTipo} fw-bold text-end" style="width: 20%">${valorFormatado}</td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (erro) {
+            console.error("Erro ao carregar a tela de início:", erro);
+        }
+    }
+
+    window.onload = carregarInicio;
+</script>
+
+</body>
+</html>

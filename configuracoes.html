@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .bg-primary-dark { background-color: #1F4E78 !important; color: white; }
+        .text-receita { color: #00B050; }
+        .text-despesa { color: #C00000; }
+        /* Novos estilos para os botões de ação */
+        .btn-acao { background: none; border: none; font-size: 1.1rem; cursor: pointer; transition: 0.2s; }
+        .btn-acao:hover { transform: scale(1.2); opacity: 0.7; }
+        .btn-lixeira { background: none; border: none; font-size: 1.1rem; color: #dc3545; transition: 0.2s; cursor: pointer; }
+        .btn-lixeira:hover { transform: scale(1.2); opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-primary-dark p-3 shadow-sm mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand text-white fw-bold" href="#">📊 Dashboard Academy</a>
+        <div class="d-flex gap-3">
+            <a href="index.html" class="btn btn-outline-light btn-sm">Início</a>
+            <a href="lancamentos.html" class="btn btn-outline-light btn-sm">Lançamentos</a>
+            <a href="dashboard.html" class="btn btn-outline-light btn-sm">Dashboards</a>
+            <a href="configuracoes.html" class="btn btn-light btn-sm fw-bold">Configurações</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+        
+        <div class="col-md-6 mb-4">
+            <h5 class="text-primary-dark fw-bold mb-3">📁 Plano de Contas</h5>
+            <div class="card shadow-sm p-4 mb-3">
+                <form id="formPlano" onsubmit="salvarPlano(event)" class="row g-2">
+                    <input type="hidden" id="planoId">
+                    
+                    <div class="col-md-5">
+                        <input type="text" id="descConta" class="form-control" placeholder="Nova categoria..." required>
+                    </div>
+                    <div class="col-md-4">
+                        <select id="tipoConta" class="form-select" required>
+                            <option value="Receita">Receita</option>
+                            <option value="Despesa">Despesa</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" id="btnSalvarPlano" class="btn bg-primary-dark text-white w-100 fw-bold">Adicionar</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card shadow-sm">
+                <ul class="list-group list-group-flush" id="listaPlanoContas">
+                    </ul>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <h5 class="text-primary-dark fw-bold mb-3">🎯 Metas Financeiras</h5>
+            <div class="card shadow-sm p-4 mb-3">
+                <form id="formMetas" onsubmit="salvarMeta(event)">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted fw-bold small">Mês</label>
+                            <select id="mesMeta" class="form-select">
+                                <option value="01">Janeiro</option><option value="02">Fevereiro</option>
+                                <option value="03" selected>Março</option><option value="04">Abril</option>
+                                <option value="05">Maio</option><option value="06">Junho</option>
+                                <option value="07">Julho</option><option value="08">Agosto</option>
+                                <option value="09">Setembro</option><option value="10">Outubro</option>
+                                <option value="11">Novembro</option><option value="12">Dezembro</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted fw-bold small">Ano</label>
+                            <select id="anoMeta" class="form-select" onchange="carregarMetasDoAno()">
+                                <option value="2026" selected>2026</option>
+                                <option value="2027">2027</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted fw-bold small">Meta de Receita (R$)</label>
+                            <input type="number" id="metaReceita" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted fw-bold small">Limite de Despesa (R$)</label>
+                            <input type="number" id="metaDespesa" class="form-control" step="0.01" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn bg-primary-dark text-white w-100 fw-bold">Salvar Meta do Mês</button>
+                </form>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-white fw-bold">Histórico do Ano Selecionado</div>
+                <ul class="list-group list-group-flush" id="listaMetasSalvas">
+                    </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // IMPORTANTE: Coloque aqui o seu Link! (http://127.0.0.1:8000/api)
+    const API_URL = "https://meu-financeiro-api-p20x.onrender.com/api";
+    
+    const formatarMoeda = (valor) => parseFloat(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    // --- FUNÇÕES DO PLANO DE CONTAS ---
+    async function carregarPlanoContas() {
+        try {
+            const resp = await fetch(`${API_URL}/plano-contas`);
+            const dados = await resp.json();
+            const lista = document.getElementById('listaPlanoContas');
+            lista.innerHTML = '';
+            
+            dados.forEach(conta => {
+                const cor = conta.tipo === 'Receita' ? 'text-receita' : 'text-despesa';
+                // Escape de aspas para não quebrar o botão de editar se o nome tiver aspas
+                const descSegura = conta.descricao.replace(/'/g, "\\'"); 
+                
+                lista.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="${cor} fw-bold">${conta.descricao} <small class="text-muted fw-normal">(${conta.tipo})</small></span>
+                        <div>
+                            <button class="btn-acao" onclick="prepararEdicaoPlano(${conta.id}, '${descSegura}', '${conta.tipo}')" title="Editar">✏️</button>
+                            <button class="btn-lixeira" onclick="excluirPlano(${conta.id})" title="Excluir">🗑️</button>
+                        </div>
+                    </li>
+                `;
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    // Função NOVA: Puxa os dados da lista para o formulário
+    function prepararEdicaoPlano(id, descricao, tipo) {
+        document.getElementById('planoId').value = id;
+        document.getElementById('descConta').value = descricao;
+        document.getElementById('tipoConta').value = tipo;
+        document.getElementById('btnSalvarPlano').innerText = "Atualizar";
+    }
+
+    // Função ATUALIZADA: Inteligente para saber se é Adicionar (POST) ou Editar (PUT)
+    async function salvarPlano(e) {
+        e.preventDefault();
+        
+        const id = document.getElementById('planoId').value;
+        const dados = {
+            descricao: document.getElementById('descConta').value,
+            tipo: document.getElementById('tipoConta').value
+        };
+
+        const metodo = id ? 'PUT' : 'POST';
+        const url = id ? `${API_URL}/plano-contas/${id}` : `${API_URL}/plano-contas`;
+
+        try {
+            const resposta = await fetch(url, { 
+                method: metodo, 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(dados) 
+            });
+
+            if (resposta.ok) {
+                // Reseta tudo de volta para o modo "Adicionar"
+                document.getElementById('formPlano').reset();
+                document.getElementById('planoId').value = '';
+                document.getElementById('btnSalvarPlano').innerText = "Adicionar";
+                carregarPlanoContas();
+            } else {
+                alert("Erro ao salvar no banco de dados.");
+            }
+        } catch (erro) {
+            console.error(erro);
+            alert("Falha de conexão com a API.");
+        }
+    }
+
+    // Função ATUALIZADA: Lixeira com tratamento de erro
+    async function excluirPlano(id) {
+        if(confirm("Tem certeza que deseja excluir esta categoria permanentemente?")) {
+            try {
+                const resposta = await fetch(`${API_URL}/plano-contas/${id}`, { method: 'DELETE' });
+                if (resposta.ok) {
+                    carregarPlanoContas(); // Recarrega a lista para a linha sumir
+                } else {
+                    alert("Erro ao excluir. O servidor recusou a requisição.");
+                }
+            } catch (erro) {
+                console.error(erro);
+                alert("Erro de conexão ao tentar excluir.");
+            }
+        }
+    }
+
+    // --- FUNÇÕES DAS METAS ---
+    async function carregarMetasDoAno() {
+        const ano = document.getElementById('anoMeta').value;
+        try {
+            const resp = await fetch(`${API_URL}/metas/listar/${ano}`);
+            const dados = await resp.json();
+            const lista = document.getElementById('listaMetasSalvas');
+            lista.innerHTML = '';
+            
+            if(dados.length === 0) lista.innerHTML = '<li class="list-group-item text-muted">Nenhuma meta salva neste ano.</li>';
+
+            dados.forEach(m => {
+                lista.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Mês ${m.mes}</span>
+                        <span class="small">
+                            <span class="text-receita border-end pe-2 me-2">Receita: ${formatarMoeda(m.meta_receita)}</span>
+                            <span class="text-despesa">Despesa: ${formatarMoeda(m.meta_despesa)}</span>
+                        </span>
+                    </li>
+                `;
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    async function salvarMeta(e) {
+        e.preventDefault();
+        const dados = {
+            mes: document.getElementById('mesMeta').value,
+            ano: document.getElementById('anoMeta').value,
+            meta_receita: parseFloat(document.getElementById('metaReceita').value),
+            meta_despesa: parseFloat(document.getElementById('metaDespesa').value)
+        };
+        try {
+            await fetch(`${API_URL}/metas`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+            document.getElementById('formMetas').reset();
+            carregarMetasDoAno();
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    window.onload = () => { carregarPlanoContas(); carregarMetasDoAno(); };
+</script>
+</body>
+</html>

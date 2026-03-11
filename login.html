@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Dashboard Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #f4f6f9; 
+            height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+        }
+        .bg-primary-dark { background-color: #1F4E78 !important; color: white; }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .btn-login { transition: 0.3s; }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(31,78,120,0.4); }
+    </style>
+</head>
+<body>
+
+<div class="card login-card p-4 p-md-5">
+    <div class="text-center mb-4">
+        <h3 class="fw-bold text-primary-dark mb-1">📊 Dashboard Academy</h3>
+        <p class="text-muted small">Faça login para gerenciar suas finanças</p>
+    </div>
+
+    <div id="alertaErro" class="alert alert-danger d-none small text-center" role="alert">
+        Email ou senha incorretos.
+    </div>
+
+    <form id="formLogin" onsubmit="entrar(event)">
+        <div class="mb-3">
+            <label class="form-label text-muted fw-bold small">E-mail</label>
+            <input type="email" id="email" class="form-control form-control-lg bg-light" placeholder="seu@email.com" required>
+        </div>
+        <div class="mb-4">
+            <label class="form-label text-muted fw-bold small">Senha</label>
+            <input type="password" id="senha" class="form-control form-control-lg bg-light" placeholder="••••••••" required>
+        </div>
+        <button type="submit" id="btnEntrar" class="btn bg-primary-dark text-white w-100 fw-bold btn-lg btn-login">
+            Entrar no Sistema
+        </button>
+    </form>
+</div>
+
+<script>
+    // IMPORTANTE: Coloque o seu link real do Render aqui
+    const API_URL = "https://SEU-LINK-DO-RENDER.onrender.com/api"; 
+
+    async function entrar(event) {
+        event.preventDefault(); // Evita a página de recarregar
+        
+        const email = document.getElementById('email').value;
+        const senha = document.getElementById('senha').value;
+        const btnEntrar = document.getElementById('btnEntrar');
+        const alertaErro = document.getElementById('alertaErro');
+
+        // Mostra que está carregando
+        btnEntrar.innerText = "Acessando...";
+        btnEntrar.disabled = true;
+        alertaErro.classList.add('d-none');
+
+        try {
+            const resposta = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, senha: senha })
+            });
+
+            if (resposta.ok) {
+                const dados = await resposta.json();
+                
+                // A MÁGICA DA SEGURANÇA: Salva um "crachá" invisível no navegador
+                localStorage.setItem('usuarioLogado', 'true');
+                localStorage.setItem('nomeUsuario', dados.nome);
+                
+                // Redireciona para a tela inicial
+                window.location.href = 'index.html';
+            } else {
+                // Senha errada
+                alertaErro.classList.remove('d-none');
+                btnEntrar.innerText = "Entrar no Sistema";
+                btnEntrar.disabled = false;
+            }
+        } catch (erro) {
+            console.error(erro);
+            alert("Erro de conexão com o servidor.");
+            btnEntrar.innerText = "Entrar no Sistema";
+            btnEntrar.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
